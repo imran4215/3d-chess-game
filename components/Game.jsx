@@ -33,7 +33,7 @@ export default function Game() {
 
   // Derived
   const aiColor = playerColor === 'w' ? 'b' : 'w'
-  const boardFlipped = playerColor === 'b' // black at bottom for black player
+  const boardFlipped = playerColor === 'b'
 
   // === COLOR + DIFFICULTY PICKER ===
   const chooseColor = useCallback((color, diff) => {
@@ -52,11 +52,11 @@ export default function Game() {
     setGameResult(null)
     setTurn('w')
     setBoard(chessRef.current.board())
-    setIsPlayerTurn(color === 'w') // white goes first
+    setIsPlayerTurn(color === 'w')
     setGameStarted(true)
   }, [])
 
-  // Refresh state from chess.js
+  // Refresh state
   const refreshState = useCallback(() => {
     const chess = chessRef.current
     setBoard([...chess.board()])
@@ -69,7 +69,6 @@ export default function Game() {
       setSelectedSquare(null)
       setPossibleMoves([])
       setCheckSquare(null)
-
       if (chess.isCheckmate()) {
         const winner = chess.turn() === 'w' ? 'b' : 'w'
         setStatusText('checkmate')
@@ -169,17 +168,14 @@ export default function Game() {
     try {
       const move = chess.move({ from, to, promotion: 'q' })
       if (!move) return false
-
       moveHistoryRef.current = [...moveHistoryRef.current, move]
       setLastMove({ from: move.from, to: move.to })
-
       if (move.captured) {
         capturedPiecesRef.current = [
           ...capturedPiecesRef.current,
           { type: move.captured, color: move.color === 'w' ? 'b' : 'w' },
         ]
       }
-
       setSelectedSquare(null)
       setPossibleMoves([])
       refreshState()
@@ -192,14 +188,11 @@ export default function Game() {
   // Click on square
   const handleSquareClick = useCallback((square) => {
     if (!playerColor || turn !== playerColor || aiThinking || isGameOver) return
-
     const isTarget = possibleMoves.some(m => m.to === square)
     if (isTarget) {
       executeMove(selectedSquare, square)
       return
     }
-
-    // Select own piece
     const chess = chessRef.current
     const b = chess.board()
     const f = square.charCodeAt(0) - 97
@@ -213,7 +206,7 @@ export default function Game() {
     }
   }, [playerColor, turn, aiThinking, isGameOver, possibleMoves, selectedSquare, executeMove, selectSquare])
 
-  // New game — go back to color picker
+  // New game
   const handleNewGame = useCallback(() => {
     setPlayerColor(null)
     setGameStarted(false)
@@ -239,52 +232,26 @@ export default function Game() {
       handleNewGame()
       return
     }
-
     const chess = chessRef.current
     chess.undo()
     chess.undo()
     moveHistoryRef.current = moveHistoryRef.current.slice(0, -2)
-
     const allMoves = chess.history({ verbose: true })
     capturedPiecesRef.current = allMoves
       .filter(m => m.captured)
       .map(m => ({ type: m.captured, color: m.color === 'w' ? 'b' : 'w' }))
-
     setSelectedSquare(null)
     setPossibleMoves([])
     setLastMove(null)
     refreshState()
   }, [refreshState, handleNewGame])
 
-  // Save game
-  const handleSaveGame = useCallback(async () => {
-    if (!gameResult || !playerColor) return
-    try {
-      const res = await fetch('/api/games', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          result: gameResult,
-          termination: statusText === 'checkmate' ? 'checkmate' : 'draw',
-          moves: moveHistoryRef.current.map(m => m.san),
-          pgn: chessRef.current.pgn(),
-          playerName: playerColor === 'w' ? 'Player (White)' : 'Player (Black)',
-        }),
-      })
-      const data = await res.json()
-      if (data.success) alert('Game saved! 🎉')
-    } catch {
-      alert('MongoDB not available. Game saved locally.')
-    }
-  }, [gameResult, statusText, playerColor])
-
   const playerWon = gameResult === playerColor
 
-  // ===== RENDER =====
   return (
-    <div className="w-full h-screen bg-[#0a0a1a] flex">
-      {/* 3D Board */}
-      <div className="flex-1 relative">
+    <div className="w-full h-screen bg-[#0a0a1a] flex flex-col lg:flex-row overflow-hidden">
+      {/* 3D Board — takes most space on mobile, flex on desktop */}
+      <div className="relative w-full lg:flex-1 h-[63vh] lg:h-full min-h-0">
         {gameStarted && (
           <ChessBoard3D
             boardState={board}
@@ -299,30 +266,30 @@ export default function Game() {
 
         {/* AI Thinking overlay */}
         {aiThinking && (
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm text-amber-400 px-5 py-2.5 rounded-full text-sm font-medium flex items-center gap-2.5 border border-amber-500/30 shadow-lg z-10">
+          <div className="absolute top-3 lg:top-6 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm text-amber-400 px-4 lg:px-5 py-2 rounded-full text-xs lg:text-sm font-medium flex items-center gap-2 border border-amber-500/30 shadow-lg z-10 whitespace-nowrap">
             <div className="flex gap-1">
-              <span className="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '200ms' }} />
-              <span className="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '400ms' }} />
+              <span className="w-1.5 h-1.5 lg:w-2 lg:h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1.5 h-1.5 lg:w-2 lg:h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '200ms' }} />
+              <span className="w-1.5 h-1.5 lg:w-2 lg:h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '400ms' }} />
             </div>
-            AI is thinking...
+            AI thinking...
           </div>
         )}
 
         {/* Game Over overlay */}
         {isGameOver && (
-          <div className="absolute inset-0 flex items-center justify-center z-20">
-            <div className="bg-black/85 backdrop-blur-md rounded-2xl px-10 py-6 text-center border border-white/10 shadow-2xl">
-              <p className="text-5xl mb-2">
+          <div className="absolute inset-0 flex items-center justify-center z-20 p-4">
+            <div className="bg-black/85 backdrop-blur-md rounded-2xl px-6 lg:px-10 py-5 lg:py-6 text-center border border-white/10 shadow-2xl max-w-xs lg:max-w-sm w-full">
+              <p className="text-3xl lg:text-5xl mb-1 lg:mb-2">
                 {playerWon ? '🏆' : gameResult ? '😞' : '🤝'}
               </p>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-xl lg:text-2xl font-bold text-white">
                 {playerWon ? 'You Win!' : gameResult ? 'AI Wins!' : 'Draw!'}
               </p>
-              <p className="text-gray-400 text-sm mt-1 capitalize">{statusText}</p>
+              <p className="text-gray-400 text-xs lg:text-sm mt-1 capitalize">{statusText}</p>
               <button
                 onClick={handleNewGame}
-                className="mt-4 px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-lg font-semibold text-black hover:from-amber-400 hover:to-orange-400 transition-all"
+                className="mt-3 lg:mt-4 px-5 lg:px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-lg font-semibold text-black hover:from-amber-400 hover:to-orange-400 transition-all text-sm lg:text-base"
               >
                 Play Again
               </button>
@@ -330,23 +297,23 @@ export default function Game() {
           </div>
         )}
 
-        {/* Color + Difficulty Picker Overlay */}
+        {/* Color + Difficulty Picker */}
         {!gameStarted && (
-          <div className="absolute inset-0 flex items-center justify-center z-30 bg-[#0a0a1a]">
-            <div className="bg-gray-900/90 backdrop-blur-md rounded-3xl px-10 py-8 text-center border border-gray-800/50 shadow-2xl max-w-lg">
-              <p className="text-5xl mb-2">♟️</p>
-              <h2 className="text-3xl font-bold bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent mb-1">
+          <div className="absolute inset-0 flex items-center justify-center z-30 bg-[#0a0a1a] p-4">
+            <div className="bg-gray-900/90 backdrop-blur-md rounded-3xl px-6 lg:px-10 py-6 lg:py-8 text-center border border-gray-800/50 shadow-2xl max-w-xs lg:max-w-lg w-full">
+              <p className="text-3xl lg:text-5xl mb-1 lg:mb-2">♟️</p>
+              <h2 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent mb-1">
                 3D Chess
               </h2>
-              <p className="text-gray-400 text-sm mb-6">vs AI — Choose your side & difficulty</p>
+              <p className="text-gray-400 text-xs lg:text-sm mb-4 lg:mb-6">vs AI — Choose your side & difficulty</p>
 
               {/* Difficulty */}
-              <div className="flex gap-2 justify-center mb-6">
+              <div className="flex gap-2 justify-center mb-4 lg:mb-6">
                 {['easy', 'medium', 'hard'].map((d) => (
                   <button
                     key={d}
                     onClick={() => setDifficulty(d)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-all ${
+                    className={`px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium capitalize transition-all ${
                       difficulty === d
                         ? d === 'easy' ? 'bg-green-600 text-white shadow-lg' :
                           d === 'medium' ? 'bg-amber-600 text-white shadow-lg' :
@@ -363,21 +330,21 @@ export default function Game() {
               </div>
 
               {/* Color */}
-              <div className="flex gap-4 justify-center">
+              <div className="flex gap-3 lg:gap-4 justify-center">
                 <button
                   onClick={() => chooseColor('w', difficulty)}
-                  className="flex flex-col items-center gap-2 px-8 py-5 rounded-2xl bg-gradient-to-b from-gray-100 to-gray-300 text-gray-900 hover:from-white hover:to-gray-200 transition-all hover:scale-105 active:scale-95 shadow-lg border-2 border-transparent hover:border-amber-400"
+                  className="flex flex-col items-center gap-1.5 lg:gap-2 px-6 lg:px-8 py-4 lg:py-5 rounded-2xl bg-gradient-to-b from-gray-100 to-gray-300 text-gray-900 hover:from-white hover:to-gray-200 transition-all hover:scale-105 active:scale-95 shadow-lg border-2 border-transparent hover:border-amber-400"
                 >
-                  <span className="text-5xl">♔</span>
-                  <span className="font-bold text-lg">White</span>
+                  <span className="text-3xl lg:text-5xl">♔</span>
+                  <span className="font-bold text-base lg:text-lg">White</span>
                   <span className="text-xs text-gray-500">First move</span>
                 </button>
                 <button
                   onClick={() => chooseColor('b', difficulty)}
-                  className="flex flex-col items-center gap-2 px-8 py-5 rounded-2xl bg-gradient-to-b from-gray-800 to-gray-950 text-white hover:from-gray-700 hover:to-gray-900 transition-all hover:scale-105 active:scale-95 shadow-lg border-2 border-gray-700 hover:border-amber-400"
+                  className="flex flex-col items-center gap-1.5 lg:gap-2 px-6 lg:px-8 py-4 lg:py-5 rounded-2xl bg-gradient-to-b from-gray-800 to-gray-950 text-white hover:from-gray-700 hover:to-gray-900 transition-all hover:scale-105 active:scale-95 shadow-lg border-2 border-gray-700 hover:border-amber-400"
                 >
-                  <span className="text-5xl">♚</span>
-                  <span className="font-bold text-lg">Black</span>
+                  <span className="text-3xl lg:text-5xl">♚</span>
+                  <span className="font-bold text-base lg:text-lg">Black</span>
                   <span className="text-xs text-gray-400">AI starts</span>
                 </button>
               </div>
@@ -386,9 +353,9 @@ export default function Game() {
         )}
       </div>
 
-      {/* Side Panel */}
+      {/* Side Panel — desktop: side, mobile: bottom drawer */}
       {gameStarted && (
-        <div className="w-72 lg:w-80 p-3 flex flex-col">
+        <div className="w-full lg:w-80 xl:w-96 h-[37vh] lg:h-full overflow-y-auto p-2 lg:p-3 flex flex-col border-t lg:border-t-0 lg:border-l border-gray-800/50">
           <GameUI
             status={statusText}
             turn={turn}
@@ -398,7 +365,6 @@ export default function Game() {
             gameResult={gameResult}
             onNewGame={handleNewGame}
             onUndo={handleUndo}
-            onSaveGame={handleSaveGame}
             playerColor={playerColor}
             difficulty={difficulty}
           />
